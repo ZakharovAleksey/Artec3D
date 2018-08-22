@@ -10,7 +10,7 @@
 
 // !!! If you need to perform input file generation and launch test scenarios define
 // otherwise - comment this row
-#define TEST
+//#define TEST
 
 #ifdef TEST
 
@@ -24,7 +24,9 @@ void TestMultiThread();
 void Test()
 {
 	TestRunner tr;
+	// Short test 5 MB file
 	RUN_TEST(tr, TestSingleThread);
+	// Long test 128 MB file
 	RUN_TEST(tr, TestMultiThread);
 }
 
@@ -45,11 +47,11 @@ int main()
 #ifdef TEST
 
 	Test();
-	size_t file_mem = 12'582'912; // -> 12 Mb (In bytes)
+	size_t file_mem = 268'435'456; // 12'582'912; // -> 12 Mb (In bytes)
 
 #endif
 
-	size_t free_mem = 1'048'576; // [0, 128x1024x1024] ->1Mb (In bytes)
+	size_t free_mem = 33'554'432; // 524'288;//104'857'600; // [0, 128x1024x1024] ->1Mb (In bytes)
 
 	std::cout << "Input amount of availible free memory in range [0, 134.217.728] bytes : ";
 	while (std::cin >> free_mem && (free_mem < 0 || free_mem > 134'217'728))
@@ -64,8 +66,13 @@ int main()
 
 	try
 	{
+		auto t_start = std::chrono::system_clock::now();
+
 		solver::Solver s(free_mem, "input.bin", "output.bin");
 		s.Solve();
+
+		auto t_end = std::chrono::system_clock::now();
+		std::clog << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(t_end - t_start).count() << "s." << std::endl;
 	}
 	catch (const std::runtime_error & e)
 	{
@@ -118,8 +125,8 @@ void TestSingleThread()
 void TestMultiThread()
 {
 	const string in_file("in_tmp_mt.bin"), out_file("out_tmp_mt.bin");
-	size_t input_file_bytes = 5'242'880;
-	size_t availible_bytes = 1'048'576;
+	size_t input_file_bytes = 134'217'728;
+	size_t availible_bytes = 33'554'432;
 
 	gen::NormDistGenerator gen;
 	auto expected = gen.Generate(input_file_bytes, in_file);

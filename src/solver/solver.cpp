@@ -12,7 +12,7 @@
 
 #include<future>
 
-
+// Could be removed
 #include<chrono>
 using namespace std::chrono;
 
@@ -37,6 +37,38 @@ namespace solver
 
 	void Solver::Solve(bool is_single_thread)
 	{
+		ifstream ifs; ifs.open(in_file_name_, ios::in | ios::binary);
+		CHECK_IF_OPEN(ifs, in_file_name_);
+
+		// If file is empty : write empty file
+		if (ifs.peek() == std::ifstream::traits_type::eof())
+		{
+			ofstream ofs; ofs.open(out_file_name_, ios::out | ios::binary);
+			CHECK_IF_OPEN(ofs, out_file_name_);
+			ofs.close(); ifs.close();
+			return;
+		}
+
+		// If file size fit in availible memory : just place it there and sort
+		ifs.seekg(0, ios::end);
+		int64_t file_byte_len = ifs.tellg();
+		ifs.seekg(0, ios::beg);
+
+		if (file_byte_len <= bytes_availible_)
+		{
+			vector<int32_t> result(file_byte_len / unit_size_, 0);
+			ifs.read(reinterpret_cast<char*>(&result[0]), file_byte_len);
+			sort(begin(result), end(result));
+
+			ofstream ofs; ofs.open(out_file_name_, ios::out | ios::binary);
+			CHECK_IF_OPEN(ofs, out_file_name_);
+			ofs.write((char*)& result[0], file_byte_len);
+			ofs.close();
+			ifs.close();
+			return;
+		}
+		
+
 		if (is_single_thread)
 			GenerateChunksSTHelper();
 		else
