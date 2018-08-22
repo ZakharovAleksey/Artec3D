@@ -17,7 +17,7 @@ More detailed explanation of k-way merge algorithm:
 
 P.S. 
 1. In this algorithm parts (1 and 2) could be performed asynchronously, so we can use async to increase algorithm.
-2. In this algorihm we could increase k-way merge algorithm: reading from EXTERNAL memory takes about 10ms, but we could read not only one element - we could read a block of memory (In the same 10 ms.). So we need to make min-heap not from only first elements of chunks- we need more elements from each chunck (until the fit in  availible memory). This will reduce number of reading from EXTERNAL memory: we read from EXTRERNAL memory only when queue of elements ended for the current chunk, and instead of reading one elment we read block of elements. 
+2. [ MAY BE ] In this algorihm we could increase k-way merge algorithm: reading from EXTERNAL memory takes about 10ms, but we could read not only one element - we could read a block of memory (In the same 10 ms.). So we need to make min-heap not from only first elements of chunks- we need more elements from each chunck (until the fit in  availible memory). This will reduce number of reading from EXTERNAL memory: we read from EXTRERNAL memory only when queue of elements ended for the current chunk, and instead of reading one elment we read block of elements. 
 
 ## How to run application
 
