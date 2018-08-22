@@ -15,6 +15,7 @@ namespace solver
 		size_t chunk_id;
 
 		MinHeapKV() : value(0), chunk_id(0) {}
+		MinHeapKV(size_t _chunck_id) : value(0), chunk_id(_chunck_id) {}
 		MinHeapKV(int32_t _value, size_t _chunck_id) : value(_value), chunk_id(_chunck_id) {}
 
 		friend ostream & operator<<(ostream & os, const MinHeapKV & kv);
@@ -46,6 +47,9 @@ namespace solver
 		// Performs merge procedure for previously created files with sorted data chunks
 		// !!! public for time measurement purposes only !!!
 		void MergeChunks();
+
+
+		void MergeChuncksExternal();
 
 	private:
 

@@ -12,6 +12,10 @@
 
 #include<future>
 
+
+#include<chrono>
+using namespace std::chrono;
+
 #define CHECK_IF_OPEN(ifs, input_file_name){									\
 	if (!ifs.is_open()){														\
 		ifs.close();															\
@@ -112,6 +116,102 @@ namespace solver
 				// - Close this file
 				// - Remove last elem. from min_heap (we have no more elem. with 'chunk_id')
 				min_heap.pop_back();
+				ifs_sorted[top.chunk_id].close();
+
+				// !!! Not Necessary !!! removement of file with empty chunk
+				ostringstream os; os << "sorted_chunk_" << top.chunk_id << ".bin";
+				remove(os.str().c_str());
+			}
+		}
+		ofs.close();
+	}
+
+	void Solver::MergeChuncksExternal()
+	{
+		size_t reading_bytes = (size_t) floor((double)bytes_availible_ / chunks_numb_) / 4;
+		reading_bytes = (reading_bytes % unit_size_ == 0) ? reading_bytes : reading_bytes - (reading_bytes % unit_size_);
+		// Need to knew when read onother portion from file
+		vector<int32_t> each_chunk_el_count(chunks_numb_, 0);
+		vector<int64_t> each_chunk_byte_len(chunks_numb_, 0);
+
+		// Create MinHeap with <Key, Value> = <cur. min. value in file with 'chunk_id', chunk_id>
+		vector<MinHeapKV> min_heap;
+
+		auto t_start = system_clock::now();
+
+		vector<ifstream> ifs_sorted; ifs_sorted.resize(chunks_numb_);
+		for (size_t id = 0; id < chunks_numb_; ++id)
+		{
+			ostringstream os; os << "sorted_chunk_" << id << ".bin";
+			ifs_sorted[id].open(os.str(), ios::in | ios::binary);
+			CHECK_IF_OPEN(ifs_sorted[id], os.str());
+
+			ifs_sorted[id].seekg(0, ios::end);
+			each_chunk_byte_len[id] = ifs_sorted[id].tellg();
+			ifs_sorted[id].seekg(0, ios::beg);
+
+			// Here we read from current file with chunk MAXIMUM possible values
+			size_t left_bytes = (size_t)(each_chunk_byte_len[id] - (int64_t)ifs_sorted[id].tellg());
+			size_t buffer_size = (left_bytes < reading_bytes) ? left_bytes : reading_bytes;
+			each_chunk_el_count[id] = buffer_size / unit_size_;
+
+			vector<int32_t> tmp(buffer_size / unit_size_, 0);
+			ifs_sorted[id].read(reinterpret_cast<char*>(&tmp[0]), buffer_size);
+			for (const auto & value : tmp)
+				min_heap.push_back({ value, id });
+		}
+
+		make_heap(begin(min_heap), end(min_heap), MinHeapComparator());
+
+		auto t_end = system_clock::now();
+		std::clog << "Make Initial heap" << ":" << duration_cast<milliseconds>(t_end - t_start).count() << "ms." << endl;
+
+		ofstream ofs;
+		ofs.open(out_file_name_, ios::out | ios::binary);
+		CHECK_IF_OPEN(ofs, out_file_name_);
+
+		while (!min_heap.empty())
+		{
+			// Take min elem. from the heap and write it to the result output file
+			auto top = *begin(min_heap);
+			pop_heap(begin(min_heap), end(min_heap), MinHeapComparator());
+			min_heap.pop_back();
+
+			if (ifs_sorted[top.chunk_id])
+			{
+				ofs.write((char*)& top.value, unit_size_);
+				--each_chunk_el_count[top.chunk_id];
+
+				// Here we need to read another segment of data from empty chunk
+				if (each_chunk_el_count[top.chunk_id] == 0)
+				{
+					// Here we read from current file with chunk MAXIMUM possible values
+					size_t left_bytes = (size_t)(each_chunk_byte_len[top.chunk_id] - (int64_t)ifs_sorted[top.chunk_id].tellg());
+					size_t buffer_size = (left_bytes < reading_bytes) ? left_bytes : reading_bytes;
+					each_chunk_el_count[top.chunk_id] = buffer_size / unit_size_;
+
+					vector<int32_t> tmp(buffer_size / unit_size_, 0);
+					// If we could not read from file once again -> close it
+					if (tmp.empty())
+					{
+						ifs_sorted[top.chunk_id].close();
+
+						// !!! Not Necessary !!! removement of file with empty chunk
+						ostringstream os; os << "sorted_chunk_" << top.chunk_id << ".bin";
+						remove(os.str().c_str());
+					}
+					else
+					{
+						ifs_sorted[top.chunk_id].read(reinterpret_cast<char*>(&tmp[0]), buffer_size);
+						for (const auto & value : tmp)
+							min_heap.push_back({ value, top.chunk_id });
+
+						make_heap(begin(min_heap), end(min_heap), MinHeapComparator());
+					}
+				}
+			}
+			else
+			{
 				ifs_sorted[top.chunk_id].close();
 
 				// !!! Not Necessary !!! removement of file with empty chunk
