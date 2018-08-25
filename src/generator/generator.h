@@ -11,17 +11,17 @@ namespace gen
 	class NormDistGenerator
 	{
 	public:
-		NormDistGenerator(int32_t mu = 10000, int32_t sigma = 100);
+		NormDistGenerator(uint32_t mu = 10000, uint32_t sigma = 100);
 
 		// Generate dataset and returns vector of expected after sorting values
-		vector<int32_t> Generate(size_t possible_bytes, const string & out_f_name);
+		vector<uint32_t> Generate(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum);
 
 	private:
 
-		vector<int32_t> GenerateHelper(size_t possible_bytes, const string & out_f_name);
+		vector<uint32_t> GenerateHelper(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum);
 
 	private:
-		int32_t mu_;
-		int32_t sigma_;
+		uint32_t mu_;
+		uint32_t sigma_;
 	};
 }

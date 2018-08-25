@@ -16,23 +16,15 @@
 #include<chrono>
 using namespace std::chrono;
 
-#define CHECK_IF_OPEN(ifs, input_file_name){									\
-	if (!ifs.is_open()){														\
-		ifs.close();															\
-		ostringstream os;														\
-		os << "Could not open file " << input_file_name << " for Read (Write).";\
-		throw runtime_error(os.str());											\
-	}																			\
-}
 
 namespace solver
 {
 	Solver::Solver(size_t bytes_availible, const string & in_file_name, const string & out_file_name) : 
-		bytes_availible_(bytes_availible), chunks_numb_(0), unit_size_(sizeof(int32_t)),
+		bytes_availible_(bytes_availible), chunks_numb_(0), unit_size_(sizeof(uint32_t)),
 		in_file_name_(in_file_name), out_file_name_(out_file_name) 
 	{
 		if (bytes_availible_ % unit_size_ != 0)
-			throw(logic_error("Input availible bytes must be divide on sizeof(int32_t)[4 bytes]!"));
+			throw(logic_error("Input availible bytes must be divide on sizeof(uint32_t)[4 bytes]!"));
 	}
 
 	void Solver::Solve(bool is_single_thread)
@@ -51,12 +43,12 @@ namespace solver
 
 		// If file size fit in availible memory : just place it there and sort
 		ifs.seekg(0, ios::end);
-		int64_t file_byte_len = ifs.tellg();
+		uint64_t file_byte_len = ifs.tellg();
 		ifs.seekg(0, ios::beg);
 
 		if (file_byte_len <= bytes_availible_)
 		{
-			vector<int32_t> result(file_byte_len / unit_size_, 0);
+			vector<uint32_t> result(file_byte_len / unit_size_, 0);
 			ifs.read(reinterpret_cast<char*>(&result[0]), file_byte_len);
 			sort(begin(result), end(result));
 
@@ -163,8 +155,8 @@ namespace solver
 		size_t reading_bytes = (size_t) floor((double)bytes_availible_ / chunks_numb_) / 4;
 		reading_bytes = (reading_bytes % unit_size_ == 0) ? reading_bytes : reading_bytes - (reading_bytes % unit_size_);
 		// Need to knew when read onother portion from file
-		vector<int32_t> each_chunk_el_count(chunks_numb_, 0);
-		vector<int64_t> each_chunk_byte_len(chunks_numb_, 0);
+		vector<uint32_t> each_chunk_el_count(chunks_numb_, 0);
+		vector<uint64_t> each_chunk_byte_len(chunks_numb_, 0);
 
 		// Create MinHeap with <Key, Value> = <cur. min. value in file with 'chunk_id', chunk_id>
 		vector<MinHeapKV> min_heap;
@@ -183,11 +175,11 @@ namespace solver
 			ifs_sorted[id].seekg(0, ios::beg);
 
 			// Here we read from current file with chunk MAXIMUM possible values
-			size_t left_bytes = (size_t)(each_chunk_byte_len[id] - (int64_t)ifs_sorted[id].tellg());
+			size_t left_bytes = (size_t)(each_chunk_byte_len[id] - (uint64_t)ifs_sorted[id].tellg());
 			size_t buffer_size = (left_bytes < reading_bytes) ? left_bytes : reading_bytes;
 			each_chunk_el_count[id] = buffer_size / unit_size_;
 
-			vector<int32_t> tmp(buffer_size / unit_size_, 0);
+			vector<uint32_t> tmp(buffer_size / unit_size_, 0);
 			ifs_sorted[id].read(reinterpret_cast<char*>(&tmp[0]), buffer_size);
 			for (const auto & value : tmp)
 				min_heap.push_back({ value, id });
@@ -218,11 +210,11 @@ namespace solver
 				if (each_chunk_el_count[top.chunk_id] == 0)
 				{
 					// Here we read from current file with chunk MAXIMUM possible values
-					size_t left_bytes = (size_t)(each_chunk_byte_len[top.chunk_id] - (int64_t)ifs_sorted[top.chunk_id].tellg());
+					size_t left_bytes = (size_t)(each_chunk_byte_len[top.chunk_id] - (uint64_t)ifs_sorted[top.chunk_id].tellg());
 					size_t buffer_size = (left_bytes < reading_bytes) ? left_bytes : reading_bytes;
 					each_chunk_el_count[top.chunk_id] = buffer_size / unit_size_;
 
-					vector<int32_t> tmp(buffer_size / unit_size_, 0);
+					vector<uint32_t> tmp(buffer_size / unit_size_, 0);
 					// If we could not read from file once again -> close it
 					if (tmp.empty())
 					{
@@ -254,7 +246,7 @@ namespace solver
 		ofs.close();
 	}
 
-	void Solver::WriteHelper(ofstream & ofs, const string & cur_out_file_name, const vector<int32_t>& values)
+	void Solver::WriteHelper(ofstream & ofs, const string & cur_out_file_name, const vector<uint32_t>& values)
 	{
 		ofs.open(cur_out_file_name, ios::out | ios::binary);
 		CHECK_IF_OPEN(ofs, cur_out_file_name)
@@ -272,7 +264,7 @@ namespace solver
 		// to file length divided on availible bytes and rounded upwards (if last 
 		// sub-part of data is less then availible bytes)
 		ifs.seekg(0, ifs.end);
-		int64_t file_byte_len = ifs.tellg();
+		uint64_t file_byte_len = ifs.tellg();
 		chunks_numb_ = static_cast<size_t>(ceil((long double) file_byte_len / bytes_availible_));
 		
 		// Multithreading part : need no mutex beacuse threads has no intersection
@@ -287,7 +279,7 @@ namespace solver
 		}
 	}
 
-	void Solver::GenerateSingleChunk(size_t chunk_id, const int64_t file_byte_len)
+	void Solver::GenerateSingleChunk(size_t chunk_id, const uint64_t file_byte_len)
 	{
 		ifstream ifs(in_file_name_, ios::in | ios::binary);
 		ofstream ofs;
@@ -296,10 +288,10 @@ namespace solver
 		// current 'chunk_id' value | And obtain size of current chunk (could be less
 		// than availible bytes)
 		ifs.seekg(chunk_id * bytes_availible_, ios::cur);
-		size_t left_bytes = (size_t)(file_byte_len - (int64_t)ifs.tellg());
+		size_t left_bytes = (size_t)(file_byte_len - (uint64_t)ifs.tellg());
 		size_t buffer_size = (left_bytes < bytes_availible_) ? left_bytes : bytes_availible_;
 
-		vector<int32_t> values(buffer_size / unit_size_, 0);
+		vector<uint32_t> values(buffer_size / unit_size_, 0);
 		ifs.read(reinterpret_cast<char*>(&values[0]), buffer_size);
 
 		sort(begin(values), end(values));
@@ -318,11 +310,11 @@ namespace solver
 		ofstream ofs;
 
 		ifs.seekg(0, ifs.end);
-		int64_t file_byte_len = ifs.tellg();
+		uint64_t file_byte_len = ifs.tellg();
 		ifs.seekg(0, ifs.beg);
 
 		// Write data in chunks while their size os not less than availible bytes
-		vector<int32_t> values; values.resize(size_t(bytes_availible_ / (int64_t)unit_size_));
+		vector<uint32_t> values; values.resize(size_t(bytes_availible_ / (uint64_t)unit_size_));
 		size_t cur_read_bytes = 0;
 
 		while (ifs && cur_read_bytes + bytes_availible_ <= file_byte_len)
@@ -339,7 +331,7 @@ namespace solver
 		if (cur_read_bytes < file_byte_len)
 		{
 			// Prepare vector of appropriate size (which is left)
-			values.swap(vector<int32_t>());
+			values.swap(vector<uint32_t>());
 			values.resize((file_byte_len - cur_read_bytes) / unit_size_);
 
 			ifs.read(reinterpret_cast<char*>(&values[0]), file_byte_len - cur_read_bytes);
