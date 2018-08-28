@@ -13,9 +13,7 @@
 
 namespace gen
 {
-	NormDistGenerator::NormDistGenerator(uint32_t mu, uint32_t sigma) : mu_(mu), sigma_(sigma) {}
-
-	vector<uint32_t> NormDistGenerator::Generate(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum)
+	vector<uint32_t> ValuesGenerator::Generate(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum)
 	{
 		try { return GenerateHelper(possible_bytes, out_f_name, total_sum); }
 		catch (const runtime_error & e)
@@ -24,10 +22,11 @@ namespace gen
 		}
 	}
 	
-	vector<uint32_t> NormDistGenerator::GenerateHelper(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum)
+	vector<uint32_t> ValuesGenerator::GenerateHelper(size_t possible_bytes, const string & out_f_name, uint64_t & total_sum)
 	{
-		normal_distribution<double> distribution(mu_, sigma_);
-		default_random_engine generator;
+		random_device rand_dev;
+		mt19937 generator(rand_dev());
+		uniform_int_distribution<uint32_t> dist_unif;
 
 		size_t el_numb = possible_bytes / sizeof(uint32_t);
 		vector<uint32_t> result(el_numb, 0);
@@ -38,9 +37,9 @@ namespace gen
 		{
 			for (int el_id = 0; el_id < el_numb; ++el_id)
 			{
-				uint32_t cur_val = static_cast<uint32_t>(distribution(generator));
+				uint32_t cur_val = dist_unif(generator);
 				result[el_id] = cur_val;
-				total_sum += cur_val;
+				total_sum += static_cast<uint64_t>(cur_val);
 				ofs.write((char*)&cur_val, sizeof(uint32_t));
 			}
 

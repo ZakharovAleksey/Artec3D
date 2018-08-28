@@ -16,17 +16,22 @@
 
 using namespace unit_test;
 
+void TestCorrectGeneration();
 // Simple tests for Single(Multi)Thread implementation
 void TestSingleThread();
 void TestMultiThread();
+void TestArtec3D(const string & input_file_name, const uint64_t initial_byte_len, 
+	const uint64_t initial_total_sum);
 
 void Test()
 {
 	TestRunner tr;
+	// Correct generation check
+	RUN_TEST(tr, TestCorrectGeneration);
 	// Short test 5 MB file
 	RUN_TEST(tr, TestSingleThread);
 	// Long test 128 MB file
-	//RUN_TEST(tr, TestMultiThread);
+	RUN_TEST(tr, TestMultiThread);
 }
 
 #endif 
@@ -40,52 +45,6 @@ using namespace std::chrono;
 	clog << #func << ":" << duration_cast<milliseconds>(t_end - t_start).count()	\
 		 << "ms." << endl;															\
 }
-
-void TestArtec3D(const string & input_file_name, const uint64_t initial_byte_len, const uint64_t initial_total_sum)
-{
-	ifstream ifs; ifs.open(input_file_name, ios::out | ios::binary);
-	CHECK_IF_OPEN(ifs, input_file_name);
-
-	ifs.seekg(0, ios::end);
-	int64_t file_byte_len = ifs.tellg();
-	ifs.seekg(0, ios::beg);
-
-	if (file_byte_len != initial_byte_len)
-	{
-		ifs.close();
-		clog << "Exp len: " << initial_byte_len << " != " << "Real len: " << file_byte_len << endl;
-		throw runtime_error("Byte length are not equal");
-	}
-
-	uint32_t cur, next;
-	size_t unit_size = sizeof(uint32_t);
-
-	ifs.read(reinterpret_cast<char*>(&cur), unit_size);
-	uint64_t total_sum{ cur };
-	while (ifs.tellg() < file_byte_len)
-	{
-		ifs.read(reinterpret_cast<char*>(&next), unit_size);
-		total_sum += next;
-		if (cur > next)
-		{
-			ifs.close();
-			throw runtime_error("Not increasing order is detected");
-		}
-		cur = next;
-	}
-
-	bool total_sums_equal = (total_sum == initial_total_sum);
-	
-	if (!total_sums_equal)
-	{
-		ifs.close();
-		clog << "Exp sum: " << initial_total_sum << " != " << "Real sum: " << total_sum << endl;
-		throw runtime_error("Total sums are not equal");
-	}
-
-	ifs.close();
-}
-
 
 
 int main()
@@ -101,11 +60,11 @@ int main()
 
 	std::cout << "Input amount of availible free memory in range [0, 134.217.728] bytes : ";
 	while (std::cin >> free_mem && (free_mem < 0 || free_mem > 134'217'728))
-		std::cout << "Wrong input. Try again: ";
+			std::cout << "Wrong input. Try again: ";
 	
 #ifdef TEST
 
-	gen::NormDistGenerator gen;
+	gen::ValuesGenerator gen;
 	uint64_t total_sum = 0;
 	gen.Generate(file_mem, "input.bin", total_sum);
 
@@ -165,7 +124,7 @@ void TestSingleThread()
 	size_t input_file_bytes = 5'242'883;
 	size_t availible_bytes = 1'048'576;
 
-	gen::NormDistGenerator gen;
+	gen::ValuesGenerator gen;
 	uint64_t total_sum = 0;
 	auto expected = gen.Generate(input_file_bytes, in_file, total_sum);
 
@@ -211,7 +170,7 @@ void TestMultiThread()
 	size_t input_file_bytes = 134'217'728;
 	size_t availible_bytes = 33'554'432;
 
-	gen::NormDistGenerator gen;
+	gen::ValuesGenerator gen;
 	uint64_t total_sum = 0;
 	auto expected = gen.Generate(input_file_bytes, in_file, total_sum);
 
@@ -235,6 +194,67 @@ void TestMultiThread()
 
 	remove(in_file.c_str());
 	remove(out_file.c_str());
+}
+
+void TestCorrectGeneration()
+{
+	uint64_t file_mem = 128u;
+	uint64_t availible_mem = 32u;
+
+	gen::ValuesGenerator gen;
+	uint64_t total_sum = 0u;
+	vector<uint32_t> result = gen.Generate(file_mem, "input.bin", total_sum);
+	vector<uint32_t> expected(result);
+
+	sort(begin(expected), end(expected));
+	ASSERT_EQUAL(result, expected);
+
+	remove("input.bin");
+}
+
+void TestArtec3D(const string & input_file_name, const uint64_t initial_byte_len, const uint64_t initial_total_sum)
+{
+	ifstream ifs; ifs.open(input_file_name, ios::out | ios::binary);
+	CHECK_IF_OPEN(ifs, input_file_name);
+
+	ifs.seekg(0, ios::end);
+	int64_t file_byte_len = ifs.tellg();
+	ifs.seekg(0, ios::beg);
+
+	if (file_byte_len != initial_byte_len)
+	{
+		ifs.close();
+		clog << "Exp len: " << initial_byte_len << " != " << "Real len: " << file_byte_len << endl;
+		throw runtime_error("Byte length are not equal");
+	}
+
+	uint32_t cur, next;
+	size_t unit_size = sizeof(uint32_t);
+
+	ifs.read(reinterpret_cast<char*>(&cur), unit_size);
+	uint64_t total_sum{ cur };
+	while (ifs.tellg() < file_byte_len)
+	{
+		ifs.read(reinterpret_cast<char*>(&next), unit_size);
+		total_sum += next;
+		if (cur > next)
+		{
+			ifs.close();
+			throw runtime_error("Not increasing order is detected");
+		}
+		cur = next;
+	}
+
+	bool total_sums_equal = (total_sum == initial_total_sum);
+
+	if (!total_sums_equal)
+	{
+		ifs.close();
+		clog << "Exp sum: " << initial_total_sum << " != " << "Real sum: " << total_sum << endl;
+		throw runtime_error("Total sums are not equal");
+	}
+
+	ifs.close();
 }
 
 #endif
